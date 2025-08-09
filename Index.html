@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lucknow MSME CRM – हिन्दी | English</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    body {margin:0; font-family:Inter, system-ui, sans-serif; background:#0b0f14; color:#f8fafc}
+    header {padding:12px 16px; background:linear-gradient(90deg,#0b0f14,#111827); display:flex; justify-content:space-between; align-items:center}
+    .title {font-weight:700; font-size:1.2rem}
+    .kpi {display:grid; gap:10px; grid-template-columns:repeat(3,1fr); margin:16px 0}
+    .card {background:#121926; padding:12px; border-radius:12px; text-align:center}
+    .wrap {max-width:1200px; margin:0 auto; padding:0 16px}
+    canvas {background:#0b1220; border-radius:12px; padding:10px}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="title">Lucknow MSME CRM</div>
+  </header>
+
+  <div class="wrap">
+    <!-- KPI Cards -->
+    <section class="kpi">
+      <div class="card"><div>Revenue This Month</div><div id="kpiRevenue">₹0</div></div>
+      <div class="card"><div>Repeat‑Rate</div><div id="kpiRepeat">0%</div></div>
+      <div class="card"><div>Follow‑ups Today</div><div id="kpiFollow">0</div></div>
+    </section>
+
+    <!-- Charts -->
+    <section class="kpi">
+      <canvas id="revenueChart" height="180"></canvas>
+      <canvas id="typeChart" height="180"></canvas>
+      <canvas id="stageChart" height="180"></canvas>
+    </section>
+  </div>
+
+  <script>
+    window.SUPABASE_URL = '';
+    window.SUPABASE_ANON = '';
+    const TABLE = 'customers';
+    let supabase = null, dbMode='local';
+
+    (async function init(){
+      if (window.SUPABASE_URL && window.SUPABASE_ANON) {
+        supabase = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON);
+        dbMode = 'supabase';
+      }
+      await loadAll();
+    })();
+
+    async function loadAll(){
+      let list = [];
+      if(dbMode==='supabase'){
+        const {data,error} = await supabase.from(TABLE).select('*');
+        if(error) console.warn(error); else list=data;
+      }
+      updateKPIs(list);
+      drawCharts(list);
+    }
+
+    function updateKPIs(list){
+      const now = new Date();
+      const ym = now.getFullYear()+"-"+(String(now.getMonth()+1).padStart(2,'0'));
+      let rev=0, repeat=0, total=0, follow=0;
+      list.forEach(c=>{
+        if(c.last_purchase_date && c.last_purchase_date.startsWith(ym)) rev+=Number(c.last_amount||0);
+        if(c.frequency && c.frequency>=2) repeat++;
+        total++;
+        if(c.stage==='ReorderDue') follow++;
+      });
+      document.getElementById('kpiRevenue').textContent = '₹'+Intl.NumberFormat('en-IN').format(rev);
+      document.getElementById('kpiRepeat').textContent = total? Math.round((repeat/total)*100)+'%':'0%';
+      document.getElementById('kpiFollow').textContent = follow;
+    }
+
+    function drawCharts(list){
+      // Revenue by month
+      const monthMap={};
+      list.forEach(c=>{
+        if(c.last_purchase_date){
+          const m = c.last_purchase_date.substring(0,7);
+          monthMap[m]=(monthMap[m]||0)+Number(c.last_amount||0);
+        }
+      });
+      new Chart(document.getElementById('revenueChart'),{
+        type:'bar', data:{labels:Object.keys(monthMap), datasets:[{label:'₹ Revenue', data:Object.values(monthMap)}]},
+        options:{plugins:{legend:{display:false}}}
+      });
+
+      // Customer type distribution
+      const typeMap={New:0, Regular:0, Occasional:0};
+      list.forEach(c=>{typeMap[c.customer_type||'New']++});
+      new Chart(document.getElementById('typeChart'),{
+        type:'pie', data:{labels:Object.keys(typeMap), datasets:[{data:Object.values(typeMap)}]}
+      });
+
+      // Stage counts
+      const stages=['New','Parichay','FirstPurchase','ReorderDue','Regular','Inactive','Lost'];
+      const stageCount={}; stages.forEach(s=>stageCount[s]=0);
+      list.forEach(c=>{stageCount[c.stage||'New']++});
+      new Chart(document.getElementById('stageChart'),{
+        type:'bar', data:{labels:stages, datasets:[{label:'Count', data:stages.map(s=>stageCount[s])}]},
+        options:{indexAxis:'y',plugins:{legend:{display:false}}}
+      });
+    }
+  </script>
+</body>
+</html>
