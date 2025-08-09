@@ -4,108 +4,303 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Lucknow MSME CRM – हिन्दी | English</title>
+  <!-- CDNs -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <style>
-    body {margin:0; font-family:Inter, system-ui, sans-serif; background:#0b0f14; color:#f8fafc}
-    header {padding:12px 16px; background:linear-gradient(90deg,#0b0f14,#111827); display:flex; justify-content:space-between; align-items:center}
-    .title {font-weight:700; font-size:1.2rem}
-    .kpi {display:grid; gap:10px; grid-template-columns:repeat(3,1fr); margin:16px 0}
-    .card {background:#121926; padding:12px; border-radius:12px; text-align:center}
-    .wrap {max-width:1200px; margin:0 auto; padding:0 16px}
-    canvas {background:#0b1220; border-radius:12px; padding:10px}
+    :root{--bg:#0b0f14;--card:#121926;--muted:#93a1b1;--text:#f8fafc;--accent:#22d3ee;--ok:#34d399;--warn:#f59e0b;--bad:#ef4444;--chip:#1f2937}
+    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,Segoe UI,Roboto,Arial}
+    header{position:sticky;top:0;background:linear-gradient(90deg,#0b0f14,#111827);display:flex;gap:12px;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #111;z-index:10}
+    .title{font-weight:700} .sub{font-size:.9rem;color:var(--muted)}
+    .wrap{max-width:1200px;margin:16px auto;padding:0 12px}
+    .grid{display:grid;gap:12px}
+    @media(min-width:1100px){.grid{grid-template-columns:360px 1fr}}
+    .card{background:var(--card);border:1px solid #111;border-radius:16px;padding:14px;box-shadow:0 6px 24px rgba(0,0,0,.25)}
+    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    input,select,button,textarea{width:100%;background:#0f172a;color:var(--text);border:1px solid #1f2937;border-radius:10px;padding:10px 12px;font-size:.95rem}
+    button{cursor:pointer} button.primary{background:linear-gradient(135deg,#22d3ee,#06b6d4);border:none;color:#001018;font-weight:700}
+    .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+    .chip{background:var(--chip);border:1px solid #2b3443;border-radius:14px;padding:6px 10px;font-size:.78rem}
+    .kban{display:grid;gap:12px;margin-top:12px}
+    @media(min-width:900px){.kban{grid-template-columns:repeat(4,1fr)}}
+    .col{background:#0e1525;border:1px solid #172133;border-radius:14px;min-height:220px;padding:10px}
+    .col h3{margin:0 0 8px 0;font-size:.95rem;color:var(--accent)}
+    .cardItem{background:#0b1220;border:1px solid #1c2739;border-radius:12px;padding:10px;margin:8px 0;cursor:grab}
+    .muted{color:var(--muted)} .right{margin-left:auto}
+    .kpi{display:grid;gap:10px;grid-template-columns:repeat(3,1fr)} .kpi .card{text-align:center}
+    .ok{color:var(--ok)} .warn{color:var(--warn)} .bad{color:var(--bad)}
+    .langToggle{display:flex;gap:8px}
+    .pill{padding:6px 10px;border-radius:999px;border:1px solid #1f2937;background:#0f172a;cursor:pointer}
+    .pill.active{background:#22d3ee;color:#001018;border-color:transparent}
+    .hint{font-size:.8rem;color:var(--muted)}
+    .dash{display:grid;gap:12px;grid-template-columns:1fr}
+    @media(min-width:900px){.dash{grid-template-columns:1fr 1fr}}
+    canvas{background:#0b1220;border:1px solid #1c2739;border-radius:12px;padding:10px}
+    .empty{padding:18px;border:1px dashed #2a3547;border-radius:12px;color:var(--muted);text-align:center}
   </style>
 </head>
 <body>
   <header>
-    <div class="title">Lucknow MSME CRM</div>
+    <div>
+      <div class="title">Lucknow MSME CRM</div>
+      <div class="sub">Mobile‑first • हिन्दी | English • Offline‑friendly MVP</div>
+    </div>
+    <div class="row">
+      <button class="primary" id="syncBtn">Sync to Google Sheet</button>
+      <div class="langToggle" id="langToggle" style="margin-left:8px">
+        <div class="pill active" data-lang="bi">हिन्दी + English</div>
+        <div class="pill" data-lang="en">English</div>
+        <div class="pill" data-lang="hi">हिन्दी</div>
+      </div>
+    </div>
   </header>
 
   <div class="wrap">
-    <!-- KPI Cards -->
+    <!-- DASHBOARD TOP -->
     <section class="kpi">
-      <div class="card"><div>Revenue This Month</div><div id="kpiRevenue">₹0</div></div>
-      <div class="card"><div>Repeat‑Rate</div><div id="kpiRepeat">0%</div></div>
-      <div class="card"><div>Follow‑ups Today</div><div id="kpiFollow">0</div></div>
+      <div class="card"><div class="muted">Revenue This Month</div><div id="kpiRevenue" class="ok" style="font-size:1.3rem">₹0</div></div>
+      <div class="card"><div class="muted">Repeat‑Rate</div><div id="kpiRepeat" class="warn" style="font-size:1.3rem">0%</div></div>
+      <div class="card"><div class="muted">Follow‑ups Today</div><div id="kpiFollow" class="bad" style="font-size:1.3rem">0</div></div>
     </section>
 
-    <!-- Charts -->
-    <section class="kpi">
-      <canvas id="revenueChart" height="180"></canvas>
-      <canvas id="typeChart" height="180"></canvas>
-      <canvas id="stageChart" height="180"></canvas>
+    <section class="dash" style="margin-top:12px">
+      <div class="card"><h3 style="margin:0 0 8px">Revenue by Area</h3><canvas id="areaChart" height="180"></canvas></div>
+      <div class="card"><h3 style="margin:0 0 8px">Stage Funnel</h3><canvas id="stageChart" height="180"></canvas></div>
+    </section>
+  </div>
+
+  <div class="wrap grid">
+    <!-- Left: Add / Edit -->
+    <section class="card">
+      <h2 id="formTitle">Add Customer / ग्राहक जोड़ें</h2>
+      <div class="row">
+        <input id="name" placeholder="Name / नाम" />
+        <input id="whatsapp" placeholder="WhatsApp (10‑digit)" />
+        <input id="address" placeholder="Address / पता" />
+        <input id="city" placeholder="City / शहर" />
+        <input id="state" placeholder="State / राज्य" />
+        <input id="pincode" placeholder="Pincode (6‑digit) / पिनकोड" />
+        <input id="last_purchase_date" type="date" />
+        <input id="last_amount" type="number" step="0.01" placeholder="Last Amount ₹ / पिछली राशि" />
+        <input id="item" placeholder="Item / वस्तु" />
+        <textarea id="notes" rows="2" placeholder="Notes / नोट्स"></textarea>
+        <select id="customer_type">
+          <option value="New">New (नया)</option>
+          <option value="Regular">Regular (नियमित)</option>
+          <option value="Occasional">Occasional (कभी‑कभी)</option>
+        </select>
+        <input id="frequency" type="number" min="0" max="30" placeholder="Frequency (orders/month) / आवृत्ति" />
+        <input id="manual_score" type="number" min="1" max="5" placeholder="Manual Score 1–5 / मैनुअल स्कोर" />
+        <select id="area">
+          <option value="Hazratganj">Hazratganj</option>
+          <option value="Aliganj">Aliganj</option>
+          <option value="Gomti Nagar">Gomti Nagar</option>
+        </select>
+        <div class="row" style="width:100%">
+          <button class="primary" id="saveBtn">Save / सेव</button>
+          <button id="resetBtn">Reset</button>
+          <span class="hint right">Supabase not set? Works in localStorage.</span>
+        </div>
+      </div>
+      <div class="chips" id="quickTags">
+        <span class="chip">Kirana</span>
+        <span class="chip">Hotel</span>
+        <span class="chip">Café</span>
+        <span class="chip">Salon</span>
+        <span class="chip">Wholesale</span>
+        <span class="chip">Retail</span>
+      </div>
+    </section>
+
+    <!-- Right: Kanban -->
+    <section>
+      <div class="kban" id="kanban"></div>
+      <div id="emptyState" class="empty" style="display:none">No customers yet. Add one from the left form to see cards here.</div>
     </section>
   </div>
 
   <script>
-    window.SUPABASE_URL = '';
-    window.SUPABASE_ANON = '';
-    const TABLE = 'customers';
-    let supabase = null, dbMode='local';
+    /* ====== CONFIG ====== */
+    const SUPABASE_URL = window.SUPABASE_URL || ""; 
+    const SUPABASE_ANON = window.SUPABASE_ANON || ""; 
+    const SHEETS_WEBHOOK_URL = window.SHEETS_WEBHOOK_URL || ""; // optional
+    const TABLE = "customers";
+
+    const STAGES = [
+      {key:"New", label:"New / नया"},
+      {key:"Parichay", label:"Introduced / परिचय"},
+      {key:"FirstPurchase", label:"First Purchase / पहली खरीद"},
+      {key:"ReorderDue", label:"Reorder Due / दोबारा ऑर्डर"},
+      {key:"Regular", label:"Regular / नियमित"},
+      {key:"Inactive", label:"Inactive / निष्क्रिय"},
+      {key:"Lost", label:"Lost / खोया"}
+    ];
+
+    let supabase = null, dbMode = "local", editingId = null; 
+    let areaChart, stageChart;
 
     (async function init(){
-      if (window.SUPABASE_URL && window.SUPABASE_ANON) {
-        supabase = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON);
-        dbMode = 'supabase';
-      }
+      try{
+        if (SUPABASE_URL && SUPABASE_ANON) {
+          supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+          dbMode = "supabase";
+        }
+      }catch(e){console.warn('Supabase init skipped:', e)}
+      buildKanbanColumns();
+      bindUI();
       await loadAll();
     })();
+
+    function bindUI(){
+      byId('saveBtn').addEventListener('click', saveCustomer);
+      byId('resetBtn').addEventListener('click', resetForm);
+      document.querySelectorAll('#quickTags .chip').forEach(ch=>{
+        ch.addEventListener('click',()=>{const n = byId('notes');n.value = (n.value? n.value+", ":"") + ch.textContent;});
+      });
+      byId('langToggle').addEventListener('click', (e)=>{
+        const pill = e.target.closest('.pill'); if(!pill) return; document.querySelectorAll('.pill').forEach(p=>p.classList.remove('active')); pill.classList.add('active');
+      });
+      byId('syncBtn').addEventListener('click', doSync);
+    }
+
+    async function doSync(){
+      if(!SHEETS_WEBHOOK_URL){alert('Sheets webhook not set.');return}
+      const btn = byId('syncBtn'); btn.disabled=true; btn.textContent='Syncing…';
+      try{
+        const rows = getCache();
+        const resp = await fetch(SHEETS_WEBHOOK_URL,{method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({rows})});
+        if(!resp.ok) throw new Error('Webhook '+resp.status);
+        const j = await resp.json().catch(()=>({}));
+        alert(j.ok? 'Synced to Google Sheet!' : 'Sync completed');
+      }catch(err){ alert('Sync error: '+err.message) }
+      finally{ btn.disabled=false; btn.textContent='Sync to Google Sheet' }
+    }
+
+    function buildKanbanColumns(){
+      const wrap = byId('kanban');
+      wrap.innerHTML = '';
+      STAGES.forEach(col=>{
+        const el = document.createElement('div'); el.className = 'col'; el.dataset.stage = col.key; el.innerHTML = `<h3>${col.label}</h3><div class="dropZone" data-stage="${col.key}"></div>`; wrap.appendChild(el);
+      });
+      enableDnD();
+    }
+
+    function enableDnD(){
+      document.querySelectorAll('.dropZone').forEach(zone=>{
+        zone.addEventListener('dragover', e=>{e.preventDefault();});
+        zone.addEventListener('drop', async e=>{
+          e.preventDefault(); const id = e.dataTransfer.getData('text/plain'); const card = document.querySelector(`[data-id="${id}"]`);
+          zone.appendChild(card); await updateStage(id, zone.dataset.stage); computeKPIs(); drawCharts();
+        });
+      });
+    }
+
+    function renderCards(list){
+      const map = {}; STAGES.forEach(s=>map[s.key]=document.querySelector(`.dropZone[data-stage="${s.key}"]`)); Object.values(map).forEach(z=>z.innerHTML='');
+      const has = list.length>0; byId('emptyState').style.display = has? 'none':'block';
+      list.forEach(c=>{
+        const zone = map[c.stage||'New']; const card = document.createElement('div'); card.className='cardItem'; card.draggable=true; card.dataset.id=c.id;
+        card.addEventListener('dragstart',e=>{e.dataTransfer.setData('text/plain', c.id)});
+        card.innerHTML = `<div class="row"><strong>${escapeHtml(c.name||'No Name')}</strong><span class="chip right">${escapeHtml(c.area||'')}</span></div>
+          <div class="muted">${c.customer_type||''} • +91${c.whatsapp||''}</div>
+          <div class="row" style="margin-top:6px"><span class="chip">Prob ${c.auto_probability||1}/5</span><span class="chip">Score ${c.manual_score||1}/5</span><button style="margin-left:auto" onclick="editCustomer('${c.id}')">Edit</button></div>`;
+        zone.appendChild(card);
+      });
+    }
+
+    function computeAutoProbability(recencyDays, freq){
+      let base = 3; if(recencyDays<=7) base+=2; else if(recencyDays<=30) base+=1; else if(recencyDays<=60) base+=0; else if(recencyDays<=120) base-=1; else base-=2;
+      if(freq>=4) base+=2; else if(freq>=2) base+=1; else if(freq===1) base+=0; else base-=1; return Math.max(1, Math.min(5, base));
+    }
+
+    function computeKPIs(){
+      const list = getCache(); const now = new Date(); const ym = now.getFullYear()+"-"+(String(now.getMonth()+1).padStart(2,'0'));
+      let rev = 0, repeat=0, total=0, follow=0; list.forEach(c=>{ if(c.last_purchase_date && c.last_purchase_date.startsWith(ym)) rev += Number(c.last_amount||0); if(c.frequency && c.frequency>=2) repeat++; total++; if(c.stage==='ReorderDue') follow++; });
+      byId('kpiRevenue').textContent = '₹'+Intl.NumberFormat('en-IN').format(Math.round(rev));
+      byId('kpiRepeat').textContent = total? Math.round((repeat/total)*100)+'%':'0%';
+      byId('kpiFollow').textContent = follow;
+    }
+
+    function drawCharts(){
+      const list = getCache();
+      const areaMap = {}; list.forEach(c=>{ const k=c.area||'Other'; areaMap[k]=(areaMap[k]||0)+Number(c.last_amount||0); });
+      const areaLabels = Object.keys(areaMap), areaValues = Object.values(areaMap);
+      const areaCtx = byId('areaChart'); if(areaChart) areaChart.destroy(); areaChart = new Chart(areaCtx,{type:'bar', data:{labels:areaLabels, datasets:[{label:'₹ Revenue', data:areaValues}]}, options:{responsive:true, plugins:{legend:{display:false}}}});
+
+      const sMap = {}; STAGES.forEach(s=>sMap[s.key]=0); getCache().forEach(c=>{ sMap[c.stage||'New']++; });
+      const stageLabels = STAGES.map(s=>s.label), stageValues = STAGES.map(s=>sMap[s.key]);
+      const stageCtx = byId('stageChart'); if(stageChart) stageChart.destroy(); stageChart = new Chart(stageCtx,{type:'bar', data:{labels:stageLabels, datasets:[{label:'Customers', data:stageValues}]}, options:{responsive:true, indexAxis:'y', plugins:{legend:{display:false}}}});
+    }
+
+    async function saveCustomer(){
+      const c = collectForm(); if(!c.name){alert('Name required');return}
+      const recDays = c.last_purchase_date ? Math.floor((Date.now()-new Date(c.last_purchase_date).getTime())/86400000) : 999;
+      c.auto_probability = computeAutoProbability(recDays, Number(c.frequency||0)); c.stage = c.stage || 'New'; if(!c.id) c.id = crypto.randomUUID();
+      if(dbMode==='supabase'){ await upsertSupabase(c);} else { const list = getCache(); const idx = list.findIndex(x=>x.id===c.id); if(idx>=0) list[idx]=c; else list.push(c); setCache(list);} 
+      resetForm(); await loadAll();
+    }
+
+    async function updateStage(id, stage){
+      if(dbMode==='supabase'){ await supabase.from(TABLE).update({stage}).eq('id', id);} else { const list = getCache(); const i = list.findIndex(x=>x.id===id); if(i>=0){list[i].stage=stage; setCache(list);} }
+    }
+
+    function editCustomer(id){
+      const c = getCache().find(x=>x.id===id); if(!c) return; editingId = id;
+      set('name',c.name); set('whatsapp',c.whatsapp); set('address',c.address); set('city',c.city); set('state',c.state); set('pincode',c.pincode); set('last_purchase_date',c.last_purchase_date); set('last_amount',c.last_amount); set('item',c.item); set('notes',c.notes); sel('customer_type',c.customer_type||'New'); set('frequency',c.frequency); set('manual_score',c.manual_score); sel('area',c.area||'Hazratganj');
+      byId('formTitle').textContent = 'Edit Customer / ग्राहक संपादित करें';
+    }
+
+    function resetForm(){ editingId=null; ['name','whatsapp','address','city','state','pincode','last_purchase_date','last_amount','item','notes','frequency','manual_score'].forEach(id=>set(id,'')); sel('customer_type','New'); sel('area','Hazratganj'); byId('formTitle').textContent = 'Add Customer / ग्राहक जोड़ें'; }
+
+    function collectForm(){ return { id: editingId, name: val('name'), whatsapp: digits(val('whatsapp')), address: val('address'), city: val('city'), state: val('state'), pincode: digits(val('pincode')), last_purchase_date: val('last_purchase_date'), last_amount: Number(val('last_amount')||0), item: val('item'), notes: val('notes'), customer_type: val('customer_type'), frequency: Number(val('frequency')||0), manual_score: Number(val('manual_score')||1), area: val('area'), tags: extractTags(val('notes')) }; }
+
+    function extractTags(text){ if(!text) return []; const t = []; ['Kirana','Hotel','Café','Salon','Wholesale','Retail'].forEach(k=>{ if(text.includes(k)) t.push(k) }); return t; }
+    function val(id){return byId(id).value.trim()} function set(id,v){byId(id).value = (v??'')} function sel(id,v){byId(id).value=v}
+    function digits(s){return (s||'').replace(/\D/g,'')} function escapeHtml(s){return (s||'').replace(/[&<>"']/g, m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]))}
+    function byId(id){return document.getElementById(id)}
 
     async function loadAll(){
       let list = [];
       if(dbMode==='supabase'){
-        const {data,error} = await supabase.from(TABLE).select('*');
-        if(error) console.warn(error); else list=data;
-      }
-      updateKPIs(list);
-      drawCharts(list);
+        try{
+          const {data,error} = await supabase.from(TABLE).select('*').order('updated_at',{ascending:false}).limit(500);
+          if(error){console.warn(error); list=getCache()} else {list=data; setCache(list)}
+        }catch(e){console.warn('Supabase fetch failed, using localStorage', e); list=getCache();}
+      } else { list = getCache(); }
+      renderCards(list); computeKPIs(); drawCharts();
     }
 
-    function updateKPIs(list){
-      const now = new Date();
-      const ym = now.getFullYear()+"-"+(String(now.getMonth()+1).padStart(2,'0'));
-      let rev=0, repeat=0, total=0, follow=0;
-      list.forEach(c=>{
-        if(c.last_purchase_date && c.last_purchase_date.startsWith(ym)) rev+=Number(c.last_amount||0);
-        if(c.frequency && c.frequency>=2) repeat++;
-        total++;
-        if(c.stage==='ReorderDue') follow++;
-      });
-      document.getElementById('kpiRevenue').textContent = '₹'+Intl.NumberFormat('en-IN').format(rev);
-      document.getElementById('kpiRepeat').textContent = total? Math.round((repeat/total)*100)+'%':'0%';
-      document.getElementById('kpiFollow').textContent = follow;
-    }
+    function getCache(){ try {return JSON.parse(localStorage.getItem('crm_customers')||'[]')} catch(e){return []} }
+    function setCache(list){ localStorage.setItem('crm_customers', JSON.stringify(list)) }
 
-    function drawCharts(list){
-      // Revenue by month
-      const monthMap={};
-      list.forEach(c=>{
-        if(c.last_purchase_date){
-          const m = c.last_purchase_date.substring(0,7);
-          monthMap[m]=(monthMap[m]||0)+Number(c.last_amount||0);
-        }
-      });
-      new Chart(document.getElementById('revenueChart'),{
-        type:'bar', data:{labels:Object.keys(monthMap), datasets:[{label:'₹ Revenue', data:Object.values(monthMap)}]},
-        options:{plugins:{legend:{display:false}}}
-      });
-
-      // Customer type distribution
-      const typeMap={New:0, Regular:0, Occasional:0};
-      list.forEach(c=>{typeMap[c.customer_type||'New']++});
-      new Chart(document.getElementById('typeChart'),{
-        type:'pie', data:{labels:Object.keys(typeMap), datasets:[{data:Object.values(typeMap)}]}
-      });
-
-      // Stage counts
-      const stages=['New','Parichay','FirstPurchase','ReorderDue','Regular','Inactive','Lost'];
-      const stageCount={}; stages.forEach(s=>stageCount[s]=0);
-      list.forEach(c=>{stageCount[c.stage||'New']++});
-      new Chart(document.getElementById('stageChart'),{
-        type:'bar', data:{labels:stages, datasets:[{label:'Count', data:stages.map(s=>stageCount[s])}]},
-        options:{indexAxis:'y',plugins:{legend:{display:false}}}
-      });
-    }
+    async function upsertSupabase(row){ row.updated_at = new Date().toISOString(); const {error} = await supabase.from(TABLE).upsert(row); if(error) alert('Supabase error: '+error.message); }
   </script>
+
+  <!--
+  ======================= SUPABASE SQL (run once) =======================
+  create table if not exists public.customers (
+    id uuid primary key,
+    name text,
+    whatsapp text,
+    address text,
+    city text,
+    state text,
+    pincode text,
+    last_purchase_date date,
+    last_amount numeric,
+    item text,
+    notes text,
+    customer_type text,
+    frequency int,
+    manual_score int,
+    auto_probability int,
+    ltv numeric default 0,
+    stage text default 'New',
+    tags text[] default '{}',
+    area text,
+    created_at timestamptz default now(),
+    updated_at timestamptz default now()
+  );
+  -->
 </body>
 </html>
